@@ -26,6 +26,10 @@
 | TRAP-19 | 规则优先级 | 直接转换或覆盖产生误判 | 按数据字典处理并保留来源证据 | `app/modules/m3_model/rules.py` | `tests/test_model.py::test_shuffle_equivalent` |
 | TRAP-21 | 双向汇总 | 直接转换或覆盖产生误判 | 按数据字典处理并保留来源证据 | `app/modules/m3_model/rules.py` | `tests/test_model.py::test_source_total_mismatch` |
 | TRAP-26 | 陈旧版本 | 直接转换或覆盖产生误判 | 按数据字典处理并保留来源证据 | `app/store.py` | `tests/test_batches.py::test_sample_stale_review` |
+| TRAP-27 | 更正回归公开 | 只按阈值重算，旧版隐藏格在新版变为公开，两版对照可反推人数 | 更正版继承基准版全部保护位置（只增不减），状态标“继承保护” | `app/modules/m7_batches/handler.py` `app/modules/m4_calculate/rules.py` | `tests/test_corrections.py::test_correction_inherits_protection_and_cannot_reopen` |
+| TRAP-28 | 更正重试 | 重复提交同一更正新增多条修订并反复切换 | 以基准批次号入幂等键；已存在则原样返回，不新增版本 | `app/store.py` | `tests/test_corrections.py::test_correction_retry_adds_no_revision` |
+| TRAP-29 | 切换中断 | 先撤旧版再写新版，写失败后无有效版 | 单事务内停用与写入，失败回滚；停用语句校验 `status=active` | `app/store.py` | `tests/test_corrections.py::test_failed_switch_keeps_old_version_active` |
+| TRAP-30 | 历史版对外 | 新旧两版都当发布版，或直接删除旧版导致引用断裂 | 旧版保留只读回看，导出带历史水印；签章与发布仅限有效版 | `app/modules/m7_batches/service.py` `app/main.py` | `tests/test_corrections.py::test_old_version_is_review_only_and_export_watermarked` |
 
 ## 对账规则
 底表总数=行汇总=列汇总；所有发布等式不能只含一个隐藏单元格

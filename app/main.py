@@ -22,6 +22,21 @@ def history():return store.history()
 @app.get('/api/run/{rid}')
 def run_read(rid:str):return store.read(rid)
 
+@app.get('/api/versions/{rid}')
+def run_versions(rid:str):
+    from app import amend
+    versions=store.family(rid)
+    head=store.head_of(rid)
+    parent=next((v for v in versions if v['manifest']['run_id']==head['parent']),None) if head['parent'] else None
+    comparison=amend.compare(parent,head) if parent else []
+    payload=[]
+    for item in versions:
+        payload.append({'run_id':item['manifest']['run_id'],'version':item['version'],'status':item['status'],
+            'parent':item['parent'],'superseded_by':item['superseded_by'],'superseded_at':item['superseded_at'],
+            'reviewed':item['reviewed'],'sha256':item['manifest']['sha256'],
+            'protection':amend.protection_rows(item),'scope':amend.scope(item)})
+    return {'lineage':versions[0]['lineage'],'active':head['manifest']['run_id'],'versions':payload,'comparison':comparison}
+
 @app.post('/api/review/{rid}')
 def review(rid:str,payload:dict):
     revision=payload.get('revision')
@@ -31,7 +46,10 @@ def review(rid:str,payload:dict):
 @app.get('/api/export/{rid}')
 def evidence(rid:str):
     from app.modules.m7_batches.service import evidence_csv
-    return Response(evidence_csv(store.read(rid)),media_type='text/csv; charset=utf-8',headers={'Content-Disposition':'attachment; filename="evidence.csv"'})
+    result=store.read(rid)
+    historical=result['status']=='superseded'
+    filename='evidence-historical.csv' if historical else 'evidence.csv'
+    return Response(evidence_csv(result,historical=historical),media_type='text/csv; charset=utf-8',headers={'Content-Disposition':f'attachment; filename="{filename}"'})
 
 @app.get('/')
 def home():return RedirectResponse('/intake')

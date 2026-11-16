@@ -34,9 +34,19 @@ def alternate_path(rows,hidden,excluded):
             if target not in best or candidate<best[target]:best[target]=candidate;heapq.heappush(queue,(*candidate,target))
     return None
 
-def suppress(rows,threshold):
+def suppress(rows,threshold,floor=()):
+    """主抑制后补次抑制。
+
+    floor 是更正版必须继承的保护位置 (area, category)；它只增不减，避免旧版
+    已隐藏的格在新版公开后，被两版对照反推出人数。按位置而非 cell_id 继承，
+    这样更正时单元格重新编号也不会丢失保护。floor 不改变补环结果，只把继承
+    格预先计入 hidden。
+    """
+    protected={tuple(pos) for pos in floor}
     primary={r['cell_id'] for r in rows if 0<r['count']<threshold}
-    hidden=set(primary);added=[]
+    inherited={r['cell_id'] for r in rows if (r['area'],r['category']) in protected}-primary
+    hidden=set(primary)|inherited
+    added=[]
     for _ in range(len(rows)+1):
         unsafe=bridges(rows,hidden)
         if not unsafe:break
@@ -47,6 +57,9 @@ def suppress(rows,threshold):
         hidden|=new;added.extend(sorted(new))
     published=[]
     for r in rows:
-        kind='主抑制' if r['cell_id'] in primary else '次抑制' if r['cell_id'] in hidden else '公开'
+        if r['cell_id'] in primary:kind='主抑制'
+        elif r['cell_id'] in inherited:kind='继承保护'
+        elif r['cell_id'] in hidden:kind='次抑制'
+        else:kind='公开'
         published.append({'cell_id':r['cell_id'],'area':r['area'],'category':r['category'],'published':'—' if r['cell_id'] in hidden else str(r['count']),'status':kind,'weight':r['weight'],'line':r['line']})
-    return {'rows':published,'primary':sorted(primary),'secondary':added,'hidden':sorted(hidden),'unsafe':bridges(rows,hidden),'cost':sum(r['weight'] for r in rows if r['cell_id'] in hidden-primary),'safe':not bridges(rows,hidden)}
+    return {'rows':published,'primary':sorted(primary),'inherited':sorted(inherited),'secondary':added,'hidden':sorted(hidden),'unsafe':bridges(rows,hidden),'cost':sum(r['weight'] for r in rows if r['cell_id'] in set(added)),'safe':not bridges(rows,hidden)}
